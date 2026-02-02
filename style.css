@@ -1,0 +1,160 @@
+:root {
+  --bg-dark: #0b0f1a;
+  --bg-dark-2: #0f1525;
+  --cyan: #00f0ff;
+  --violet: #7b61ff;
+  --text-main: #eaefff;
+  --text-muted: #9aa3c7;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+body {
+  background: var(--bg-dark);
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: radial-gradient(circle at top, #16203a, #0b0f1a);
+  padding: 40px;
+}
+
+.hero h1 {
+  font-size: 4rem;
+  margin-bottom: 20px;
+}
+
+.hero h1 span {
+  color: var(--cyan);
+}
+
+.hero p {
+  color: var(--text-muted);
+  max-width: 700px;
+  margin: auto;
+}
+
+.hero-buttons {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+/* BUTTONS */
+button {
+  padding: 14px 28px;
+  border-radius: 12px;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button.primary {
+  background: var(--cyan);
+  color: #000;
+}
+
+button.primary:hover {
+  background: #4df6ff;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+}
+
+button.secondary:hover {
+  background: var(--cyan);
+  color: #000;
+}
+
+button.large {
+  font-size: 1.1rem;
+  padding: 18px 40px;
+}
+
+/* SPLIT */
+.split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 40px;
+  padding: 100px 10%;
+}
+
+.box h2 {
+  margin-bottom: 10px;
+}
+
+.box p {
+  color: var(--text-muted);
+}
+
+/* TECHNO */
+.tech {
+  background: var(--bg-dark-2);
+  padding: 100px 10%;
+  text-align: center;
+}
+
+.tech h2 span {
+  color: var(--violet);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  margin-top: 50px;
+}
+
+.card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 30px;
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+}
+
+.card i {
+  color: var(--cyan);
+  width: 40px;
+  height: 40px;
+  margin-bottom: 15px;
+}
+
+/* ECOSYSTEM */
+.ecosystem {
+  padding: 100px 15%;
+  text-align: center;
+}
+
+.ecosystem p {
+  color: var(--text-muted);
+  margin-top: 15px;
+}
+
+/* CTA */
+.cta {
+  padding: 120px 20px;
+  background: linear-gradient(to bottom, #0b0f1a, #0f1525);
+  text-align: center;
+}

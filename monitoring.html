@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>WaterSeer – Monitoring 3D</title>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(circle at top, #0f172a, #020617);
+  font-family: "Segoe UI", sans-serif;
+  color: white;
+}
+
+.main {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+#scene-container {
+  flex: 1;
+}
+
+.dashboard {
+  width: 320px;
+  padding: 20px;
+  background: rgba(15,23,42,0.95);
+  backdrop-filter: blur(12px);
+  border-left: 1px solid rgba(255,255,255,0.1);
+  overflow-y: auto;
+}
+
+.card {
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: transform 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.value {
+  font-size: 28px;
+  color: #22d3ee;
+}
+
+.unit {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  margin-left: 4px;
+}
+
+h2 {
+  margin-top: 0;
+  color: #22d3ee;
+  border-bottom: 2px solid rgba(34, 211, 238, 0.3);
+  padding-bottom: 10px;
+}
+
+#connection-status {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0,0,0,0.7);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.connected {
+  background: #10b981;
+  animation: pulse 2s infinite;
+}
+
+.status-dot.disconnected {
+  background: #ef4444;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.water-level-indicator {
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.water-level-fill {
+  height: 100%;
+  width: 50%;
+  border-radius: 4px;
+  transition: width 0.5s ease, background 0.5s ease;
+}
+
+.instructions {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.water-colors-info {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.color-dot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot.normal { background: #22d3ee; }
+.dot.warning { background: #f59e0b; }
+.dot.critical { background: #ef4444; }
+
+#last-update {
+  font-family: 'Courier New', monospace;
+  background: rgba(0,0,0,0.3);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+</style>
+</head>
+
+<body>
+<div class="main">
+  <div id="scene-container"></div>
+  
+  <div id="connection-status">
+    <span class="status-dot disconnected" id="status-dot"></span>
+    <span id="status-text">Connexion Firebase...</span>
+  </div>
+
+  <div class="dashboard">
+    <h2>Réservoir WaterSeer</h2>
+
+    <div class="card">
+      <p>Niveau d'eau</p>
+      <div id="level" class="value">-- <span class="unit">%</span></div>
+      <div class="water-level-indicator">
+        <div class="water-level-fill" id="water-fill"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p>Volume estimé</p>
+      <div id="volume" class="value">-- <span class="unit">L</span></div>
+    </div>
+
+    <div class="card">
+      <p>État</p>
+      <div id="status" class="value">---</div>
+    </div>
+    
+    <div class="card">
+      <p>Informations</p>
+      <div style="font-size: 14px; line-height: 1.4; opacity: 0.8;">
+        <div>Hauteur: <span id="level-cm">-- cm</span></div>
+        <div>Capacité: <span>500 L</span></div>
+        <div>Dernière mise à jour: <br><span id="last-update">--</span></div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <p>Couleurs d'eau</p>
+      <div class="water-colors-info">
+        <div class="color-dot">
+          <div class="dot normal"></div>
+          <span>Normal</span>
+        </div>
+        <div class="color-dot">
+          <div class="dot warning"></div>
+          <span>Faible</span>
+        </div>
+        <div class="color-dot">
+          <div class="dot critical"></div>
+          <span>Critique</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="instructions">
+  <div>🖱️ Rotation: Drag | 🔍 Zoom: Scroll | 📱 Mobile: Pinch & Drag</div>
+</div>
+
+<!-- THREE.JS - Using module imports -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script type="module">
+// Import Three.js modules
+import * as THREE from 'three';
+import { OrbitControls } from 'https://unpkg.com/three@0.162.0/examples/jsm/controls/OrbitControls.js';
+
+// =======================
+// FIREBASE CONFIGURATION
+// =======================
+const firebaseConfig = {
+  apiKey: "AIzaSyCEiBcCNCCsnujmv5J_t8S5DG1ytfr7zJQ",
+  authDomain: "reservoir-iot.firebaseapp.com",
+  databaseURL: "https://reservoir-iot-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "reservoir-iot",
+  storageBucket: "reservoir-iot.firebasestorage.app",
+  messagingSenderId: "279158071274",
+  appId: "1:279158071274:web:9d34d82f9305e8cfba5c93"
+};
+
+// Initialize Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+const reservoirRef = database.ref("reservoir");
+
+// Update connection status
+function updateConnectionStatus(connected) {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  
+  if (connected) {
+    dot.className = 'status-dot connected';
+    text.textContent = 'Connecté à Firebase';
+    text.style.color = '#10b981';
+  } else {
+    dot.className = 'status-dot disconnected';
+    text.textContent = 'Déconnecté - Mode Test';
+    text.style.color = '#ef4444';
+  }
+}
+
+// Monitor connection state
+database.ref(".info/connected").on("value", (snapshot) => {
+  updateConnectionStatus(snapshot.val() === true);
+});
+
+// =======================
+// THREE.JS SETUP
+// =======================
+const container = document.getElementById('scene-container');
+
+// Create scene with gradient background
+const scene = new THREE.Scene();
+const gradientTexture = createGradientTexture();
+scene.background = gradientTexture;
+
+// Create camera
+const camera = new THREE.PerspectiveCamera(
+  60,
+  container.clientWidth / container.clientHeight,
+  0.1,
+  1000
+);
+camera.position.set(0, 2, 8);
+
+// Create renderer with better quality
+const renderer = new THREE.WebGLRenderer({ 
+  antialias: true,
+  alpha: true,
+  powerPreference: "high-performance"
+});
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+// Add orbit controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 4;
+controls.maxDistance = 15;
+controls.maxPolarAngle = Math.PI / 1.8;
+controls.enablePan = false;
+
+// =======================
+// CREATE ENHANCED 3D RESERVOIR
+// =======================
+
+// Create enhanced lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(5, 10, 5);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+scene.add(directionalLight);
+
+// Add rim light for better edges
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
+rimLight.position.set(-5, 5, -5);
+scene.add(rimLight);
+
+// Create transparent reservoir with wireframe
+const tankGeometry = new THREE.CylinderGeometry(2, 2, 4, 32, 1, true);
+const tankMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0x88ccff,
+  transparent: true,
+  opacity: 0.15,
+  roughness: 0.1,
+  metalness: 0.3,
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.1,
+  side: THREE.DoubleSide
+});
+
+const tank = new THREE.Mesh(tankGeometry, tankMaterial);
+tank.castShadow = true;
+tank.receiveShadow = true;
+scene.add(tank);
+
+// Add wireframe edges
+const edgesGeometry = new THREE.EdgesGeometry(tankGeometry);
+const edgesMaterial = new THREE.LineBasicMaterial({ 
+  color: 0x22d3ee,
+  linewidth: 2,
+  transparent: true,
+  opacity: 0.8
+});
+const tankEdges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+tank.add(tankEdges);
+
+// Add top and bottom rings for better definition
+const topRingGeometry = new THREE.TorusGeometry(2, 0.05, 16, 100);
+const topRingMaterial = new THREE.MeshBasicMaterial({ 
+  color: 0x22d3ee,
+  transparent: true,
+  opacity: 0.6
+});
+const topRing = new THREE.Mesh(topRingGeometry, topRingMaterial);
+topRing.position.y = 2;
+topRing.rotation.x = Math.PI / 2;
+tank.add(topRing);
+
+const bottomRing = topRing.clone();
+bottomRing.position.y = -2;
+tank.add(bottomRing);
+
+// Create water with dynamic colors
+const waterGeometry = new THREE.CylinderGeometry(1.98, 1.98, 0.1, 32);
+const waterMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0x22d3ee,
+  transparent: true,
+  opacity: 0.8,
+  roughness: 0.1,
+  metalness: 0.5,
+  clearcoat: 1,
+  clearcoatRoughness: 0.1
+});
+
+const water = new THREE.Mesh(waterGeometry, waterMaterial);
+water.position.y = -2 + 0.05;
+water.castShadow = true;
+water.receiveShadow = true;
+scene.add(water);
+
+// Add subtle water surface waves
+const waterSurfaceGeometry = new THREE.CylinderGeometry(1.98, 1.98, 0.01, 32);
+const waterSurfaceMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.3
+});
+const waterSurface = new THREE.Mesh(waterSurfaceGeometry, waterSurfaceMaterial);
+waterSurface.position.y = -2 + 0.05;
+water.add(waterSurface);
+
+// Create enhanced floor with reflections
+const floorGeometry = new THREE.CircleGeometry(8, 32);
+const floorMaterial = new THREE.MeshStandardMaterial({
+  color: 0x111827,
+  roughness: 0.8,
+  metalness: 0.2
+});
+const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Add subtle grid on floor
+const gridHelper = new THREE.GridHelper(8, 8, 0x334155, 0x1e293b);
+gridHelper.position.y = -1.99;
+scene.add(gridHelper);
+
+// Add background elements
+const starsGeometry = new THREE.BufferGeometry();
+const starsCount = 500;
+const starsPositions = new Float32Array(starsCount * 3);
+
+for (let i = 0; i < starsCount * 3; i += 3) {
+  const radius = 20 + Math.random() * 30;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.random() * Math.PI;
+  
+  starsPositions[i] = radius * Math.sin(phi) * Math.cos(theta);
+  starsPositions[i + 1] = radius * Math.cos(phi);
+  starsPositions[i + 2] = radius * Math.sin(phi) * Math.sin(theta);
+}
+
+starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
+const starsMaterial = new THREE.PointsMaterial({
+  color: 0xffffff,
+  size: 0.1,
+  transparent: true,
+  opacity: 0.5
+});
+const stars = new THREE.Points(starsGeometry, starsMaterial);
+scene.add(stars);
+
+// =======================
+// WATER LEVEL FUNCTIONS
+// =======================
+let currentWaterColor = new THREE.Color(0x22d3ee);
+let targetWaterColor = new THREE.Color(0x22d3ee);
+
+function getWaterColor(percent) {
+  if (percent >= 20) {
+    return new THREE.Color(0x22d3ee); // Blue - Normal
+  } else if (percent >= 10) {
+    return new THREE.Color(0xf59e0b); // Orange - Warning
+  } else {
+    return new THREE.Color(0xef4444); // Red - Critical
+  }
+}
+
+function getStatusInfo(percent) {
+  if (percent >= 20) {
+    return { text: "Normal", color: "#22d3ee", class: "normal" };
+  } else if (percent >= 10) {
+    return { text: "Faible", color: "#f59e0b", class: "warning" };
+  } else {
+    return { text: "Critique", color: "#ef4444", class: "critical" };
+  }
+}
+
+function lerpColor(color1, color2, t) {
+  return new THREE.Color().lerpColors(color1, color2, t);
+}
+
+function updateWaterLevel(percent, levelCm, timestamp) {
+  percent = Math.max(0, Math.min(100, percent));
+  
+  // Calculate water height
+  const maxWaterHeight = 3.9;
+  const waterHeight = (percent / 100) * maxWaterHeight;
+  
+  // Update water geometry
+  water.scale.y = waterHeight;
+  water.position.y = -2 + (waterHeight / 2);
+  
+  // Update water surface position
+  waterSurface.position.y = waterHeight / 2 - 0.005;
+  
+  // Update water color
+  targetWaterColor = getWaterColor(percent);
+  
+  // Update dashboard
+  document.getElementById('level').innerHTML = percent.toFixed(1) + ' <span class="unit">%</span>';
+  
+  // Update volume (assuming 500L max capacity)
+  const estimatedVolume = Math.round((percent / 100) * 500);
+  document.getElementById('volume').innerHTML = estimatedVolume + ' <span class="unit">L</span>';
+  
+  // Update water level indicator
+  const waterFill = document.getElementById('water-fill');
+  waterFill.style.width = percent + '%';
+  waterFill.style.background = getStatusInfo(percent).color;
+  
+  // Update raw data
+  document.getElementById('level-cm').textContent = levelCm !== undefined ? levelCm + ' cm' : '--';
+  
+  // Update last update time
+  const now = new Date();
+  const timeString = now.toLocaleTimeString('fr-FR', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  document.getElementById('last-update').textContent = timeString;
+  
+  // Update status
+  const statusInfo = getStatusInfo(percent);
+  const statusElem = document.getElementById('status');
+  statusElem.textContent = statusInfo.text;
+  statusElem.style.color = statusInfo.color;
+  
+  // Add pulse animation for critical level
+  if (percent < 10) {
+    water.material.opacity = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
+  } else {
+    water.material.opacity = 0.8;
+  }
+  
+  console.log(`Water level updated: ${percent}% (${statusInfo.text})`);
+}
+
+// =======================
+// UTILITY FUNCTIONS
+// =======================
+function createGradientTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  
+  const gradient = context.createRadialGradient(
+    128, 128, 0,
+    128, 128, 128
+  );
+  gradient.addColorStop(0, '#0f172a');
+  gradient.addColorStop(1, '#020617');
+  
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 256, 256);
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  return texture;
+}
+
+// =======================
+// FIREBASE LISTENER
+// =======================
+reservoirRef.on("value", (snapshot) => {
+  const data = snapshot.val();
+  
+  if (data) {
+    console.log("Data received from Firebase:", data);
+    
+    const levelPercent = data.level_percent;
+    const levelCm = data.level_cm;
+    const timestamp = data.timestamp;
+    
+    if (levelPercent !== undefined) {
+      updateWaterLevel(levelPercent, levelCm, timestamp);
+    } else {
+      console.error("No level_percent found in data");
+      updateWaterLevel(0);
+    }
+  } else {
+    console.log("No data found in Firebase");
+    updateWaterLevel(0);
+  }
+}, (error) => {
+  console.error("Firebase error:", error);
+  updateConnectionStatus(false);
+});
+
+// Test mode fallback
+setTimeout(() => {
+  if (document.getElementById('level').textContent.includes('--')) {
+    console.log("Firebase data not received, using test mode");
+    updateWaterLevel(43, 107.5, 600001);
+    updateConnectionStatus(false);
+  }
+}, 3000);
+
+// =======================
+// ANIMATION LOOP
+// =======================
+let lastTime = 0;
+const colorLerpSpeed = 0.05;
+
+function animate(time) {
+  requestAnimationFrame(animate);
+  
+  const delta = time - lastTime;
+  lastTime = time;
+  
+  // Smooth color transition for water
+  if (!currentWaterColor.equals(targetWaterColor)) {
+    const t = Math.min(colorLerpSpeed * (delta / 16), 1);
+    currentWaterColor.lerp(targetWaterColor, t);
+    water.material.color.copy(currentWaterColor);
+    
+    // Update wireframe color based on water level
+    const percent = parseFloat(document.getElementById('level').textContent);
+    if (percent < 20) {
+      edgesMaterial.color.set(getWaterColor(percent));
+    } else {
+      edgesMaterial.color.set(0x22d3ee);
+    }
+  }
+  
+  // Gentle water surface animation
+  waterSurface.rotation.y += 0.001;
+  
+  // Stars rotation for background
+  stars.rotation.y += 0.0002;
+  
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate(0);
+
+// =======================
+// WINDOW RESIZE
+// =======================
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+// Handle container resize
+const resizeObserver = new ResizeObserver(() => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+resizeObserver.observe(container);
+
+console.log("✅ Enhanced 3D Reservoir Monitor loaded");
+console.log("🎨 Features: Transparent reservoir, dynamic water colors, real-time updates");
+console.log("🎯 Water colors: Blue (≥20%) | Orange (10-20%) | Red (<10%)");
+</script>
+</body>
+</html>
